@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>渠道墙</title>
+	<link rel="stylesheet" href="css/tipsy.css">
+	<script type="text/javascript" src="js/dagre-d3.min.js"></script>
+	<script type="text/javascript" src="js/d3.v4.min.js"></script>
+	<script type="text/javascript" src="js/anime.min.js"></script>
+
+	<script type="text/javascript" src="js/jquery.1.12.4.min.js"></script>
+	<script type="text/javascript" src="js/tipsy.js"></script>
+	<style>
+		/*rest*/
+		*{
+		  padding:0;
+		  margin:0;
+		  font-family:"Microsoft YaHei";
+		}
+		html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,time,mark,audio,video {
+		  margin:0;
+		  padding:0;
+		  border:0;
+		  font-size:100%;
+		  text-decoration:none;
+		}
+		html {
+		  line-height:1;
+		}
+		q,blockquote {
+		  quotes:none;
+		}
+		q:before,q:after,blockquote:before,blockquote:after {
+		  content:"";
+		  content:none;
+		}
+		a img {
+		  border:none;
+		}
+		a:hover, a:focus {
+		    text-decoration: none;
+		}
+		ol,ul {
+		  list-style:none;
+		}
+		table {
+		  border-collapse:collapse;
+		  border-spacing:0;
+		}
+		input::-webkit-input-placeholder {
+		  color: #d7d7d7!important;
+		  font-size: 12px!important;
+		}  
+		.clear:after {
+		  content: '\20';
+		  display: block;
+		  height: 0;
+		  clear: both;
+		}
+		.clear {
+		  *zoom: 1;
+		}
+		body {
+		  position: absolute;
+		  top: 0;
+		  left: 0;
+		  right: 0;
+		  bottom: 0;
+		  overflow: hidden;
+		}
+
+
+
+
+		.channelWall {
+			width: 100%;
+			height: auto;
+			text-align: center;
+		}
+
+		svg {
+		    border: 1px solid #ccc;
+			overflow: hidden;
+			margin: 0 auto;
+		}
+
+		text {
+		  font-weight: 300;
+		  font-family: "Helvetica Neue", Helvetica, Arial, sans-serf;
+		  font-size: 14px;
+		}
+
+		.node rect {
+		  stroke: #333;
+		  fill: #fff;
+		}
+
+		.edgePath path {
+		  stroke: #333;
+		  fill: #333;
+		  stroke-width: 1.5px;
+		}
+
+		.node text {
+		  pointer-events: none;
+		}
+
+		/* This styles the title of the tooltip */
+		.tipsy .name {
+		  font-size: 1.5em;
+		  font-weight: bold;
+		  color: #60b1fc;
+		  margin: 0;
+		}
+
+		/* This styles the body of the tooltip */
+		.tipsy .description {
+		  font-size: 1.2em;
+		}
+
+		/*节点样式*/
+		.pc .node_content {
+			width:124px;
+			height:84px;
+			background: url(img/pc.png) center no-repeat;
+		}
+		.f5 .node_content {
+			width:124px;
+			height:84px;
+			background: url(img/f5.png) center no-repeat;
+		}
+		.serve .node_content {
+			width:124px;
+			height:84px;
+		}
+		.serve .node_content:after {
+			content:"";
+			display:block;
+			clear:both;
+		}
+		.serve .node_content div {
+			width: 58px;
+			height: 56px;
+			background: url(img/serve.png) center no-repeat;
+		}
+		.serve .node_content h2 {
+			position: relative;
+			top: 56px;
+			/*padding: 2px 3px;*/
+			font-weight: normal;
+		}
+		.serve .node_content .serve {
+			float: left;
+			margin-right: 8px;
+		}
+		.serve .node_content .serve:last-child {
+			margin-right: 0;
+		}
+		.node_name {
+			/*font-size:20px;*/
+			color:#fff;
+			background-color:rgba(0,0,0,0.3);
+			padding-bottom: 1.5px;
+		}
+	</style>
+</head>
+<body>
+	<div class="channelWall">
+		<svg width=1904 height=500></svg>
+	</div>	
+	<script>
+			// Create a new directed graph
+		var g = new dagreD3.graphlib.Graph().setGraph({});
+
+		// States and transitions from RFC 793
+		var states = {
+		  "PC": {
+		  	name:"客户PC端",
+		  	class: "pc",
+		  	nextnode:["F5_1"],
+		    description: "represents no connection state at all.",
+		  },
+
+		  "F5_1": {
+		  	name:"F5",
+		  	class: "f5",
+		  	nextnode:["Appche"],
+		    description: "represents waiting for a connection request from any " +
+		                 "remote TCP and port."
+		  },
+
+		  "Appche": {
+		  	name:"Appche",
+		  	class: "serve",
+		  	node_content:["服务器1","服务器2"],
+		  	nextnode:["F5_2"],
+		    description: "represents waiting for a confirming connection " +
+		                 "request acknowledgment after having both received and sent a " +
+		                 "connection request."
+		  },
+
+		  "F5_2": {
+		  	name:"F5",
+		  	class: "f5",
+		  	nextnode:["App"],
+		    description: "represents waiting for a connection termination " +
+		                 "request from the remote TCP, or an acknowledgment of the " +
+		                 "connection termination request previously sent."
+		  },
+
+		  "App": {
+		  	name:"App",
+		  	class: "serve",
+		  	node_content:["服务器1","服务器2"],
+		  	nextnode:["F5_3"],
+		    description: "represents waiting for a connection termination " +
+		                 "request from the remote TCP."
+		  },
+
+		  "F5_3": {
+		  	name:"F5",
+		  	class: "f5",
+		  	nextnode:["MCA"],
+		    description: "represents waiting for enough time to pass to be " +
+		                 "sure the remote TCP received the acknowledgment of its " +
+		                 "connection termination request."
+		  },
+
+		   "MCA": {
+		   	name:"MCA",
+		   	class: "serve",
+		   	node_content:["服务器1","服务器2"],
+		   	nextnode:["prepsition","ESB"],
+		    description: "represents waiting for a matching connection " +
+		                 "request after having sent a connection request."
+		  },
+
+		  "prepsition": {
+		  	name:"前置",
+		  	class: "serve",
+		  	node_content:["服务器1","服务器2"],
+		  	nextnode:["core"],
+		    description: "represents an open connection, data received " +
+		                 "can be delivered to the user.  The normal state for the data " +
+		                 "transfer phase of the connection.",
+		  },
+
+		  "core": {
+		  	name:"核心",
+		  	class: "serve",
+		  	node_content:["服务器1","服务器2"],
+		    description: "represents waiting for a connection termination " +
+		                 "request from the local user."
+		  },
+
+		  "ESB": {
+		  	name:"ESB",
+		  	class: "serve",
+		  	node_content:["服务器1","服务器2"],
+		  	nextnode:["prepsition","business","pay"],
+		    description: "represents waiting for a connection termination " +
+		                 "request acknowledgment from the remote TCP."
+		  },
+
+		  "business": {
+		  	name:"中间业务",
+		  	class: "serve",
+		  	node_content:["服务器1","服务器2"],
+		    description: "represents waiting for an acknowledgment of the " +
+		                 "connection termination request previously sent to the remote " +
+		                 "TCP (which includes an acknowledgment of its connection " +
+		                 "termination request)."
+		  },		
+
+		  "pay": {
+		  	name:"支付",
+		  	class: "serve",
+		  	node_content:["服务器1","服务器2"],
+		    description: "represents waiting for an acknowledgment of the " +
+		                 "connection termination request previously sent to the remote " +
+		                 "TCP (which includes an acknowledgment of its connection " +
+		                 "termination request)."
+		  },
+		};
+
+		// Add states to the graph, set labels, and style  设置结点样式。
+		Object.keys(states).forEach(function(state) {
+		  var value = states[state];
+		  value.label =  function() {
+		  					if(states[state].node_content == undefined){
+		  						var node_div = document.createElement("div");
+						    	var	div1 = d3.select(node_div).attr("class","node_div").append("div").attr("class","node_content");
+						    	var	div2 = d3.select(node_div).append("H2").attr("class","node_name");
+						    	div2.text(states[state].name);	
+						    	return node_div;
+		  					}else{
+		  						var node_div = document.createElement("div");
+						    	var	div1 = d3.select(node_div).attr("class","node_div").append("div").attr("class","node_content");
+						    		for(var j=0; j<states[state].node_content.length;j++){
+							    		div1.append("div").attr("class","serve").append("h2").text(states[state].node_content[j]);	
+						    		};
+
+						    	var	div2 = d3.select(node_div).append("H2").attr("class","node_name");
+						    	div2.text(states[state].name);	
+						    	return node_div;
+		  					}
+						    
+  						},
+		  // value.rx = value.ry = 5; 
+		  g.setNode(state, value);
+
+		  //判断是否存在下个节点，有则设置所有节点流向
+		  if(states[state].nextnode != undefined){
+		  	for(var i=0; i<states[state].nextnode.length;i++){
+		  		g.setEdge(state,states[state].nextnode[i],{ label: "" });
+		  	}
+		  };
+
+		});
+
+		// Create the renderer
+		var render = new dagreD3.render();
+
+		// Set up an SVG group so that we can translate the final graph.
+		var svg = d3.select("svg"),
+		    inner = svg.append("g");
+
+		// Set up zoom support
+		var zoom = d3.zoom()
+		    .on("zoom", function() {
+		      inner.attr("transform", d3.event.transform);
+		    });
+		svg.call(zoom);
+
+		// Simple function to style the tooltip for the given node.
+		var styleTooltip = function(name, description) {
+		  return "<p class='name'>" + name + "</p><p class='description'>" + description + "</p>";
+		};
+
+		// Run the renderer. This is what draws the final graph.并控制整个的流程方向。
+		render(inner, g,this.g.graph().rankdir = "LR");
+
+		inner.selectAll("g.node")
+		  .attr("title", function(v) { return styleTooltip(v, g.node(v).description) })
+		  .each(function(v) { $(this).tipsy({ gravity: "w", opacity: 1, html: true }); });
+
+		// Center the graph,图想的初始位子，以及放大倍数。
+		var initialScale = 0.75;
+		svg.call(zoom.transform, d3.zoomIdentity.translate((svg.attr("width") - g.graph().width * 1) / 2, 20).scale(1));
+
+		// svg.attr('height', g.graph().height * initialScale + 40);
+
+
+		  //用d3添加动画结构并调用动画
+		  var basicTimeline = anime.timeline({
+		    loop: true,
+		    duration:3000,
+		    easing: 'linear',
+		  });
+		  d3.selectAll(".edgePaths .edgePath").each(function(d,i){
+		    // 添加结构
+		    var triangle = d3.select(this)
+		      .append("polygon")
+		      .attr("class","triangle").attr("points","0,-6 6,0 0,6").attr("fill","#333");
+		      
+		    //调用动画  
+		    basicTimeline.add({
+		      targets: d3.select(this).select(".triangle").nodes()[0],
+		      translateX: anime.path(d3.select(this).select(".path").nodes()[0])('x'),
+		      translateY: anime.path(d3.select(this).select(".path").nodes()[0])('y'),
+		      rotate: anime.path(d3.select(this).select(".path").nodes()[0])('angle'),
+		      offset: 0,
+		    })
+		  })
+	</script>
+</body>
+</html>
